@@ -425,7 +425,7 @@
             const obj = {};
             COLUMNS.forEach((key, idx) => { obj[key] = row[idx]; });
             // 型別轉換，確保計算正確
-            obj.id = Number(obj.id);
+            obj.id = obj.id != null ? String(obj.id).trim() : "";
             obj.hours = Number(obj.hours) || 0;
             obj.minutes = Number(obj.minutes) || 0;
             obj.value = Number(obj.value) || (obj.hours + obj.minutes / 60);
@@ -577,8 +577,12 @@
 
         const addedHours = hours + (minutes / 60);
         const recordObj = {
-            id: Date.now(), name: name, date: date,
-            hours: hours, minutes: minutes, value: addedHours
+            id: String(Date.now()), // 強制轉成字串型別
+            name: name, 
+            date: date,
+            hours: hours, 
+            minutes: minutes, 
+            value: addedHours
         };
 
         const originalText = submitBtn.innerText;
