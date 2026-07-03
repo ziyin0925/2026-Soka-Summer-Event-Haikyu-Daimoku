@@ -437,9 +437,9 @@
 <script>
     const TARGET_HOURS = 90; 
     const ADMIN_PASSWORD = "1234"; 
-    const STORAGE_KEY = "karasuno_my_records"; // 🎯 localStorage 物件名稱
+    const STORAGE_KEY = "karasuno_my_records"; 
 
-    // 🔗 Google Apps Script Web App 網址
+    // 🔗 您的最新 Google Apps Script Web App 網址
     const API_URL = "https://script.google.com/macros/s/AKfycbxShOiSE8581x7pUN7gyibZbe1xvMXUe0NtCI5VWcSDfd-NhXg2N1RDJqpQbmCzPNXJ/exec";
 
     // 📋 試算表欄位順序：id, name, date, hours, minutes, value
@@ -531,7 +531,6 @@
         });
     }
 
-    // 🎯 輔助函式：取得或初始化本地紀錄物件
     function getLocalRecordsMap() {
         try {
             const data = localStorage.getItem(STORAGE_KEY);
@@ -541,7 +540,6 @@
         }
     }
 
-    // 🎯 輔助函式：儲存紀錄 id 到本地物件中
     function saveRecordIdToLocal(id) {
         const map = getLocalRecordsMap();
         map[String(id)] = true;
@@ -719,7 +717,7 @@
         if (hours === 0 && minutes === 0) return showModal({ message: '請選擇唱題時間！' });
 
         const addedHours = hours + (minutes / 60);
-        const generatedId = String(Date.now()); // 產生字串型別 ID
+        const generatedId = String(Date.now()); 
         
         const recordObj = {
             id: generatedId, 
@@ -736,10 +734,7 @@
 
         try {
             await postRow(recordObj);   
-            
-            // 🎯 成功送出後，將 id 存入 localStorage 物件中
             saveRecordIdToLocal(generatedId);
-
             await fetchRecords();       
 
             document.getElementById('page-input').classList.remove('active');
@@ -756,14 +751,14 @@
     });
 
     async function deleteRecord(clickedBtn, id, originalName, value) {
-        // 🎯 核心修正：前端優先進行 localStorage 物件尋找與安全檢查
+        // localStorage 安全性防禦比對
         const myRecordsMap = getLocalRecordsMap();
         if (!myRecordsMap[String(id)]) {
             await showModal({
                 title: "武田老師提醒",
                 message: "無法刪除！這筆挑戰紀錄不是您填寫的喔！"
             });
-            return; // 攔截，直接終止後續動作
+            return; 
         }
 
         const inputName = await showModal({
@@ -786,6 +781,7 @@
         });
         if (!isConfirm) return;
 
+        // 鎖定結果頁的所有操作按鈕
         setAllResultButtonsLocked(true);
         const originalBtnText = clickedBtn.innerText;
         clickedBtn.innerText = "⏳...";
