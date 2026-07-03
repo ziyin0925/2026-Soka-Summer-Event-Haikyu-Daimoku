@@ -437,9 +437,10 @@
 <script>
     const TARGET_HOURS = 90; 
     const ADMIN_PASSWORD = "1234"; 
+    const STORAGE_KEY = "karasuno_my_records"; // 🎯 localStorage 物件名稱
 
     // 🔗 Google Apps Script Web App 網址
-    const API_URL = "https://script.google.com/macros/s/AKfycbxShOiSE8581x7pUN7gyibZbe1xvMXUe0NtCI5VWcSDfd-NhXg2N1RDJqpQbmCzPNXJ/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbShOiSE8581x7pUN7gyibZbe1xvMXUe0NtCI5VWcSDfd-NhXg2N1RDJqpQbmCzPNXJ/exec";
 
     // 📋 試算表欄位順序：id, name, date, hours, minutes, value
     const COLUMNS = ["id", "name", "date", "hours", "minutes", "value"];
@@ -528,6 +529,23 @@
 
             overlay.classList.add('active');
         });
+    }
+
+    // 🎯 輔助函式：取得或初始化本地紀錄物件
+    function getLocalRecordsMap() {
+        try {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    // 🎯 輔助函式：儲存紀錄 id 到本地物件中
+    function saveRecordIdToLocal(id) {
+        const map = getLocalRecordsMap();
+        map[String(id)] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
     }
 
     // 將後端的二維陣列轉成物件陣列（跳過標題列）
@@ -665,18 +683,14 @@
         }
     }
 
-    // 🎯 輔助函式：用來一鍵控制結果頁所有按鈕的鎖定狀態
     function setAllResultButtonsLocked(isLocked) {
         const deleteButtons = document.querySelectorAll('.delete-btn');
         const goBackBtn = document.getElementById('go-back-btn');
         const clearBtn = document.getElementById('clear-data-btn');
 
         deleteButtons.forEach(btn => {
-            if (isLocked) {
-                btn.classList.add('btn-locked');
-            } else {
-                btn.classList.remove('btn-locked');
-            }
+            if (isLocked) btn.classList.add('btn-locked');
+            else btn.classList.remove('btn-locked');
         });
 
         if (isLocked) {
@@ -705,9 +719,10 @@
         if (hours === 0 && minutes === 0) return showModal({ message: '請選擇唱題時間！' });
 
         const addedHours = hours + (minutes / 60);
+        const generatedId = String(Date.now()); // 產生字串型別 ID
         
         const recordObj = {
-            id: String(Date.now()), 
+            id: generatedId, 
             name: name, 
             date: date,
             hours: hours, 
@@ -721,6 +736,10 @@
 
         try {
             await postRow(recordObj);   
+            
+            // 🎯 成功送出後，將 id 存入 localStorage 物件中
+            saveRecordIdToLocal(generatedId);
+
             await fetchRecords();       
 
             document.getElementById('page-input').classList.remove('active');
@@ -737,6 +756,16 @@
     });
 
     async function deleteRecord(clickedBtn, id, originalName, value) {
+        // 🎯 核心修正：前端優先進行 localStorage 物件尋找與安全檢查
+        const myRecordsMap = getLocalRecordsMap();
+        if (!myRecordsMap[String(id)]) {
+            await showModal({
+                title: "武田老師提醒",
+                message: "無法刪除！這筆挑戰紀錄不是您填寫的喔！"
+            });
+            return; // 攔截，直接終止後續動作
+        }
+
         const inputName = await showModal({
             title: "確認身分",
             message: `請輸入填寫本條紀錄的隊員姓名 (${originalName}) ：`,
@@ -757,7 +786,6 @@
         });
         if (!isConfirm) return;
 
-        // 🎯 關鍵變更：鎖定「全畫面的刪除與功能按鈕」，防止多重操作
         setAllResultButtonsLocked(true);
         const originalBtnText = clickedBtn.innerText;
         clickedBtn.innerText = "⏳...";
@@ -777,7 +805,6 @@
             console.error(err);
             showModal({ message: '刪除失敗，請稍後再試。' });
         } finally {
-            // 🎯 請求完成後，集體解鎖
             setAllResultButtonsLocked(false);
             clickedBtn.innerText = originalBtnText;
         }
@@ -808,7 +835,6 @@
         });
         if (!isConfirm) return;
 
-        // 全面鎖定
         setAllResultButtonsLocked(true);
 
         try {
