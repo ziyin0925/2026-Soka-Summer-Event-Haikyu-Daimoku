@@ -380,10 +380,10 @@
     const TARGET_HOURS = 90; 
     const ADMIN_PASSWORD = "1234"; 
 
-    // 🔗 Google Apps Script Web App 網址
-    const API_URL = "https://script.google.com/macros/s/AKfycbxaWEGK16u9dPbvNw4rklRkSFIM1EPrwkEWMPR0r9yAjnbTnbo44VeTLwmb2Qhdg7c/exec";
+    // 🔗 已更新為您提供的新 Google Apps Script Web App 網址
+    const API_URL = "https://script.google.com/macros/s/AKfycbxShOiSE8581x7pUN7gyibZbe1xvMXUe0NtCI5VWcSDfd-NhXg2N1RDJqpQbmCzPNXJ/exec";
 
-    // 📋 試算表欄位順序（第一列請放這個標題）：id, name, date, hours, minutes, value
+    // 📋 試算表欄位順序：id, name, date, hours, minutes, value
     const COLUMNS = ["id", "name", "date", "hours", "minutes", "value"];
 
     // 排球少年勵志語錄
@@ -407,15 +407,9 @@
 
     document.getElementById('date').value = new Date().toISOString().substring(0, 10);
 
-    // 🎯 資料快取（改由 Google Sheets 讀取，不再用 localStorage）
+    // 🎯 資料快取
     let currentTotalHours = 0;
     let savedRecords = [];
-
-    /* ============================================================
-       API 溝通函式
-       - doGet 回傳整張表的二維陣列（含第一列標題）
-       - doPost 會把傳入的陣列 appendRow 到表格
-       ============================================================ */
 
     // 將後端的二維陣列轉成物件陣列（跳過標題列）
     function rowsToRecords(rows) {
@@ -424,7 +418,8 @@
         return body.map(row => {
             const obj = {};
             COLUMNS.forEach((key, idx) => { obj[key] = row[idx]; });
-            // 型別轉換，確保計算正確
+            
+            // 💡 關鍵修正 1：將 id 轉為「字串」而非數字，避免科學記號比對失敗
             obj.id = obj.id != null ? String(obj.id).trim() : "";
             obj.hours = Number(obj.hours) || 0;
             obj.minutes = Number(obj.minutes) || 0;
@@ -440,15 +435,14 @@
         const res = await fetch(API_URL, { method: "GET" });
         const rows = await res.json();
         savedRecords = rowsToRecords(rows);
-        // 依 id（時間戳）由新到舊排序
-        savedRecords.sort((a, b) => b.id - a.id);
+        // 依 id 由新到舊排序
+        savedRecords.sort((a, b) => b.id.localeCompare(a.id));
         // 重新計算總時數
         currentTotalHours = savedRecords.reduce((sum, r) => sum + r.value, 0);
     }
 
-    // 共用的 POST 送出：body 直接送入的內容（可為陣列或物件）
+    // 共用的 POST 送出
     async function postJson(body) {
-        // 用 text/plain 避免 CORS 預檢；Apps Script 端 JSON.parse(e.postData.contents) 仍可解析
         const res = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -457,13 +451,13 @@
         return res.json().catch(() => ({}));
     }
 
-    // 新增（POST）：把一筆紀錄轉成「陣列」送出，符合後端 appendRow(payload)
+    // 新增（POST）
     async function postRow(record) {
         const rowArray = COLUMNS.map(key => record[key]);
         return postJson(rowArray);
     }
 
-    // 動作指令（POST）：以「物件」原樣送出，後端靠 action 分流刪除／清空
+    // 動作指令（POST）
     async function postAction(actionObj) {
         return postJson(actionObj);
     }
@@ -471,7 +465,6 @@
     /* ============================================================
        每週統計
        ============================================================ */
-
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -512,7 +505,6 @@
     /* ============================================================
        畫面渲染
        ============================================================ */
-
     function updateProgressBar() {
         document.getElementById('current-hours').innerText = currentTotalHours.toFixed(1);
         let percentage = (currentTotalHours / TARGET_HOURS) * 100;
@@ -544,7 +536,6 @@
         });
     }
 
-    // 統一刷新畫面
     function refreshUI(animate) {
         renderRecords();
         updateWeeklyStats();
@@ -561,7 +552,6 @@
     /* ============================================================
        事件處理
        ============================================================ */
-
     const submitBtn = document.querySelector('#唱題表單 .submit-btn');
 
     document.getElementById('唱題表單').addEventListener('submit', async function(e) {
@@ -576,8 +566,10 @@
         if (hours === 0 && minutes === 0) return alert('請選擇唱題時間！');
 
         const addedHours = hours + (minutes / 60);
+        
+        // 💡 關鍵修正 2：在新增時，將 id 強制轉換為字串型別傳遞
         const recordObj = {
-            id: String(Date.now()), // 強制轉成字串型別
+            id: String(Date.now()), 
             name: name, 
             date: date,
             hours: hours, 
@@ -590,14 +582,13 @@
         submitBtn.innerText = '傳送中...';
 
         try {
-            await postRow(recordObj);   // 寫入 Google Sheets
-            await fetchRecords();       // 重新讀取最新資料
+            await postRow(recordObj);   
+            await fetchRecords();       
 
-            // 切換到結果頁
             document.getElementById('page-input').classList.remove('active');
             document.getElementById('page-result').classList.add('active');
 
-            refreshUI(true); // 有進場動畫
+            refreshUI(true); 
         } catch (err) {
             console.error(err);
             alert('資料傳送失敗，請檢查網路或稍後再試。');
@@ -617,7 +608,14 @@
         if (!confirm('確定要刪除這筆唱題紀錄嗎？')) return;
 
         try {
-            await postAction({ action: "delete", id: id });
+            // 💡 關鍵修正 3：確保發出的 action 內帶的 id 也是字串
+            const res = await postAction({ action: "delete", id: String(id) });
+            
+            if (res.status === "error") {
+                alert('刪除失敗：' + res.message);
+                return;
+            }
+
             await fetchRecords();
             refreshUI(false);
             alert('紀錄已成功扣除！');
@@ -651,7 +649,7 @@
     });
 
     /* ============================================================
-       初始化：頁面載入時從 Google Sheets 抓資料。
+       初始化
        ============================================================ */
     (async function init() {
         try {
