@@ -446,16 +446,26 @@
         currentTotalHours = savedRecords.reduce((sum, r) => sum + r.value, 0);
     }
 
-    // 新增（POST）：把一筆紀錄以「陣列」形式送出，符合後端 appendRow(payload)
-    async function postRow(record) {
-        const rowArray = COLUMNS.map(key => record[key]);
+    // 共用的 POST 送出：body 直接送入的內容（可為陣列或物件）
+    async function postJson(body) {
         // 用 text/plain 避免 CORS 預檢；Apps Script 端 JSON.parse(e.postData.contents) 仍可解析
         const res = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(rowArray)
+            body: JSON.stringify(body)
         });
         return res.json().catch(() => ({}));
+    }
+
+    // 新增（POST）：把一筆紀錄轉成「陣列」送出，符合後端 appendRow(payload)
+    async function postRow(record) {
+        const rowArray = COLUMNS.map(key => record[key]);
+        return postJson(rowArray);
+    }
+
+    // 動作指令（POST）：以「物件」原樣送出，後端靠 action 分流刪除／清空
+    async function postAction(actionObj) {
+        return postJson(actionObj);
     }
 
     /* ============================================================
@@ -603,11 +613,7 @@
         if (!confirm('確定要刪除這筆唱題紀錄嗎？')) return;
 
         try {
-            await postRow({
-                id: id, name: originalName, date: "",
-                hours: "", minutes: "", value: "",
-                action: "delete"      // 附帶刪除指令（需後端支援，見說明）
-            });
+            await postAction({ action: "delete", id: id });
             await fetchRecords();
             refreshUI(false);
             alert('紀錄已成功扣除！');
@@ -630,11 +636,7 @@
         if (!confirm('確定要讓所有人的汗水歸零嗎？')) return;
 
         try {
-            await postRow({
-                id: "", name: "", date: "",
-                hours: "", minutes: "", value: "",
-                action: "clear"       // 附帶清空指令（需後端支援，見說明）
-            });
+            await postAction({ action: "clear" });
             await fetchRecords();
             refreshUI(false);
             alert('排球場已清空！');
