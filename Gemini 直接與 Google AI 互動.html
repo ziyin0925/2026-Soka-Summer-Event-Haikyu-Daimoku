@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>烏野高中題目大作戰！</title>
+    <style>
+        :root {
+            --karasuno-orange: #ff6b00;
+            --karasuno-black: #1a1a1a;
+            --karasuno-gray: #333333;
+            --bg-color: #f4f4f4;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            position: relative;
+
+            /* 劇場版背景大圖 */
+            background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
+                        url('https://img.myvideo.net.tw/images/MED010/0000/1163/202007091743570347_2016.jpg');
+            background-size: cover;
+            background-position: 45% center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.96);
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+            box-sizing: border-box;
+            border: 3.5px solid var(--karasuno-orange);
+            z-index: 10;
+            margin: 15px auto;
+        }
+        
+        .title-area {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        h2 { 
+            color: var(--karasuno-black); 
+            margin: 0; 
+            font-size: 22px;
+            letter-spacing: 1.5px;
+            text-shadow: 1px 1px 0px var(--karasuno-orange);
+        }
+        .sub-title {
+            font-size: 11px;
+            color: #666;
+            font-weight: bold;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .page { display: none; }
+        .page.active {
+            display: block;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .energy-section {
+            background: var(--karasuno-gray);
+            color: white;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 5px solid var(--karasuno-orange);
+            font-size: 14px;
+        }
+        .energy-section strong {
+            color: var(--karasuno-orange);
+            font-size: 18px;
+        }
+        .progress-bar-container {
+            background-color: #444;
+            border-radius: 20px;
+            height: 28px; 
+            width: 100%;
+            margin: 10px 0;
+            box-shadow: inset 0 3px 6px rgba(0,0,0,0.3);
+            border: 1px solid #555;
+            position: relative; 
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #ff3300, var(--karasuno-orange), #ffcc00);
+            height: 100%;
+            width: 0%; 
+            border-radius: 20px;
+            transition: width 1.5s cubic-bezier(0.1, 1.0, 0.1, 1.0);
+        }
+        
+        /* 🏐 排球圓圈圈外殼定位修正 */
+        .volleyball-icon {
+            position: absolute;
+            top: -8px;          
+            left: 0%;           
+            width: 42px;
+            height: 42px;
+            margin-left: -21px; 
+            border-radius: 50%;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+            pointer-events: none;
+            transition: left 1.5s cubic-bezier(0.1, 1.0, 0.1, 1.0); 
+            animation: ballSpin 2s linear infinite; 
+            box-sizing: border-box;
+            border: 1.5px solid var(--karasuno-orange);
+            background-color: #000;
+            overflow: hidden; 
+        }
+
+        /* 🎯 修正：強制排球圖片在圓圈內部絕對置中對齊，修正圖片本身位移引起的晃動 */
+        .volleyball-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+        }
+        
+        @keyframes ballSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .form-group { margin-bottom: 14px; }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: var(--karasuno-black);
+            font-size: 14px;
+        }
+        input[type="text"], input[type="date"], select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus, input[type="date"]:focus, select:focus {
+            border-color: var(--karasuno-orange);
+            outline: none;
+        }
+        
+        .duration-picker {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .duration-picker select { flex: 1; text-align: center; padding: 10px 5px; }
+        .duration-picker span { font-weight: bold; color: var(--karasuno-gray); white-space: nowrap; font-size: 14px; }
+
+        button.btn {
+            width: 100%;
+            padding: 14px;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        button.submit-btn {
+            background-color: var(--karasuno-orange);
+            box-shadow: 0 4px 0px #c45200;
+            margin-top: 5px;
+        }
+        button.submit-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0px #c45200;
+        }
+        button.back-btn {
+            background-color: var(--karasuno-black);
+            border: 2px solid var(--karasuno-orange);
+            margin-top: 15px;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .record-list {
+            margin-top: 20px;
+            border-top: 2px solid var(--karasuno-black);
+            padding-top: 12px;
+        }
+        .record-list h3 { font-size: 16px; margin-top: 0; margin-bottom: 10px; }
+        .record-item {
+            font-size: 13px;
+            color: #444;
+            padding: 8px;
+            border-bottom: 1px dashed #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fdfdfd;
+            margin-bottom: 4px;
+            border-radius: 5px;
+        }
+        .delete-btn {
+            background-color: var(--karasuno-black);
+            color: white;
+            border: 1px solid var(--karasuno-orange);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .clear-btn {
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 10px;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-area">
+        <h2>飛吧！題目挑戰能量條</h2>
+        <div class="sub-title">— 將汗水與題目化為不落的烏鴉之翼 —</div>
+    </div>
+    
+    <!-- 第一頁：輸入資料 -->
+    <div id="page-input" class="page active">
+        <form id="唱題表單">
+            <div class="form-group">
+                <label for="name">隊員姓名</label>
+                <input type="text" id="name" placeholder="例如：日向翔陽" required>
+            </div>
+
+            <div class="form-group">
+                <label for="date">挑戰日期</label>
+                <input type="date" id="date" required>
+            </div>
+
+            <div class="form-group">
+                <label>唱題時數（滾動選填）</label>
+                <div class="duration-picker">
+                    <select id="hours-select"></select>
+                    <span>小時</span>
+                    <select id="minutes-select"></select>
+                    <span>分鐘</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn submit-btn">🔥 扣球！注入唱題能量！</button>
+        </form>
+    </div>
+
+    <!-- 第二頁：能量展示與速報 -->
+    <div id="page-result" class="page">
+        <div class="energy-section">
+            <div>目前累積生命力：<strong id="current-hours">0</strong> / <span id="target-hours">100</span> 小時</div>
+            
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+                <!-- 🏐 絕對中心校正排球圖標 -->
+                <div id="volleyball" class="volleyball-icon">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3XXXHrmwzsKjlKneNUUIQMFcWy2uedU8L427CkyoeGMQk025IQLgq5kk8&s=10" alt="烏野排球">
+                </div>
+            </div>
+            
+            <div>跟著烏野一起突破極限吧！</div>
+        </div>
+
+        <div class="record-list">
+            <h3>✨ 隊員挑戰速報</h3>
+            <div id="records">暫無紀錄</div>
+        </div>
+
+        <button id="go-back-btn" class="btn back-btn">⬅️ 返回填寫下一筆</button>
+        
+        <center><button class="clear-btn" id="clear-data-btn">⚙️ 烏野教練/領隊專用重設</button></center>
+    </div>
+</div>
+
+<script>
+    const TARGET_HOURS = 100; 
+    const ADMIN_PASSWORD = "1234"; 
+
+    document.getElementById('target-hours').innerText = TARGET_HOURS;
+
+    const hoursSelect = document.getElementById('hours-select');
+    const minutesSelect = document.getElementById('minutes-select');
+    for (let i = 0; i <= 23; i++) hoursSelect.options[hoursSelect.options.length] = new Option(i, i);
+    for (let i = 0; i <= 59; i++) minutesSelect.options[minutesSelect.options.length] = new Option(i, i);
+    hoursSelect.value = 1;
+    minutesSelect.value = 0;
+
+    document.getElementById('date').value = new Date().toISOString().substring(0, 10);
+
+    let currentTotalHours = parseFloat(localStorage.getItem('totalHours')) || 0;
+    let savedRecords = JSON.parse(localStorage.getItem('chantingRecordsObj')) || [];
+
+    document.getElementById('唱題表單').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value.trim();
+        const date = document.getElementById('date').value;
+        const hours = parseInt(hoursSelect.value);
+        const minutes = parseInt(minutesSelect.value);
+
+        if (!name) return alert('請輸入姓名！');
+        if (hours === 0 && minutes === 0) return alert('請選擇唱題時間！');
+
+        const addedHours = hours + (minutes / 60);
+        currentTotalHours += addedHours;
+        localStorage.setItem('totalHours', currentTotalHours);
+        
+        const recordObj = {
+            id: Date.now(), name: name, date: date, hours: hours, minutes: minutes, value: addedHours
+        };
+        
+        savedRecords.unshift(recordObj);
+        localStorage.setItem('chantingRecordsObj', JSON.stringify(savedRecords));
+
+        renderRecords();
+
+        document.getElementById('page-input').classList.remove('active');
+        document.getElementById('page-result').classList.add('active');
+
+        document.getElementById('progress-bar').style.width = '0%';
+        document.getElementById('volleyball').style.left = '0%';
+        document.getElementById('current-hours').innerText = '0.0';
+
+        setTimeout(() => {
+            updateProgressBar();
+        }, 150);
+    });
+
+    function updateProgressBar() {
+        document.getElementById('current-hours').innerText = currentTotalHours.toFixed(1);
+        let percentage = (currentTotalHours / TARGET_HOURS) * 100;
+        if (percentage > 100) percentage = 100;
+        
+        document.getElementById('progress-bar').style.width = percentage + '%';
+        document.getElementById('volleyball').style.left = percentage + '%';
+    }
+
+    function renderRecords() {
+        const recordsContainer = document.getElementById('records');
+        if (savedRecords.length === 0) {
+            recordsContainer.innerText = '暫無紀錄';
+            return;
+        }
+        recordsContainer.innerHTML = '';
+        savedRecords.forEach(record => {
+            const newRecord = document.createElement('div');
+            newRecord.className = 'record-item';
+            newRecord.innerHTML = `<span>🧡 <strong>${record.name}</strong> 於 ${record.date} 挑戰 <strong>${record.hours}時${record.minutes}分</strong></span>`;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerText = '❌ 刪除';
+            deleteBtn.onclick = function() { deleteRecord(record.id, record.name, record.value); };
+
+            newRecord.appendChild(deleteBtn);
+            recordsContainer.appendChild(newRecord);
+        });
+    }
+
+    function deleteRecord(id, originalName, value) {
+        const inputName = prompt(`確認身分：請輸入填寫本條紀錄的隊員姓名 (${originalName}) ：`);
+        if (inputName === null) return;
+        if (inputName.trim() === originalName) {
+            if (confirm('確定要刪除這筆唱題紀錄嗎？')) {
+                currentTotalHours -= value;
+                if (currentTotalHours < 0) currentTotalHours = 0;
+                localStorage.setItem('totalHours', currentTotalHours);
+                savedRecords = savedRecords.filter(record => record.id !== id);
+                localStorage.setItem('chantingRecordsObj', JSON.stringify(savedRecords));
+                updateProgressBar();
+                renderRecords();
+                alert('紀錄已成功扣除！');
+            }
+        } else {
+            alert(`名字不符！無法修改。`);
+        }
+    }
+
+    document.getElementById('go-back-btn').addEventListener('click', function() {
+        hoursSelect.value = 1;
+        minutesSelect.value = 0;
+        document.getElementById('page-result').classList.remove('active');
+        document.getElementById('page-input').classList.add('active');
+    });
+
+    document.getElementById('clear-data-btn').addEventListener('click', function() {
+        const password = prompt('請輸入教練/領隊管理密碼以清空全部資料：');
+        if (password === ADMIN_PASSWORD) {
+            if (confirm('確定要讓所有人的汗水歸零嗎？')) {
+                localStorage.clear(); currentTotalHours = 0; savedRecords = [];
+                updateProgressBar(); renderRecords(); alert('排球場已清空！');
+            }
+        } else { alert('密碼錯誤！無法操作。'); }
+    });
+</script>
+
+</body>
+</html>
