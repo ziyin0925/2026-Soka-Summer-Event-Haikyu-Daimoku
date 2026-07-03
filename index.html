@@ -10,6 +10,7 @@
             --karasuno-black: #1a1a1a;
             --karasuno-gray: #333333;
             --bg-color: #f4f4f4;
+            --white-panel: rgba(255, 255, 255, 0.96);
         }
         
         body {
@@ -35,14 +36,14 @@
         .container {
             width: 90%;
             max-width: 420px;
-            background: rgba(255, 255, 255, 0.96);
+            background: var(--white-panel);
             padding: 20px;
             border-radius: 14px;
             box-shadow: 0 8px 30px rgba(0,0,0,0.7);
             box-sizing: border-box;
             border: 3.5px solid var(--karasuno-orange);
             z-index: 10;
-            margin: 15px auto;
+            margin: 20px auto;
         }
         
         .title-area {
@@ -74,12 +75,13 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        /* 總能量條區塊 */
         .energy-section {
             background: var(--karasuno-gray);
             color: white;
             padding: 14px;
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
             border-left: 5px solid var(--karasuno-orange);
             font-size: 14px;
@@ -106,7 +108,6 @@
             transition: width 1.5s cubic-bezier(0.1, 1.0, 0.1, 1.0);
         }
         
-        /* 🏐 排球圓圈圈外殼定位修正 */
         .volleyball-icon {
             position: absolute;
             top: -8px;          
@@ -125,7 +126,6 @@
             overflow: hidden; 
         }
 
-        /* 🎯 修正：強制排球圖片在圓圈內部絕對置中對齊，修正圖片本身位移引起的晃動 */
         .volleyball-icon img {
             width: 100%;
             height: 100%;
@@ -143,6 +143,63 @@
             to { transform: rotate(360deg); }
         }
 
+        /* 🎯 新增：每週統計區塊樣式 */
+        .weekly-stats-section {
+            background-color: #eee;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+        }
+        .weekly-stats-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--karasuno-black);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .weekly-grid {
+            display: flex;
+            gap: 10px;
+        }
+        .stat-card {
+            flex: 1;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1.5px solid #ddd;
+        }
+        .stat-card.current {
+            border-color: var(--karasuno-orange);
+            background-color: #fff8f3;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--karasuno-black);
+        }
+        .stat-value span { font-size: 12px; font-weight: normal; color: #666; }
+        .stat-card.current .stat-value { color: var(--karasuno-orange); }
+
+        .quote-box {
+            margin-top: 10px;
+            font-size: 11px;
+            font-style: italic;
+            color: #555;
+            text-align: center;
+            line-height: 1.4;
+            padding: 0 5px;
+        }
+
+        /* 表單與紀錄樣式微調 */
         .form-group { margin-bottom: 14px; }
         label {
             display: block;
@@ -277,12 +334,12 @@
 
     <!-- 第二頁：能量展示與速報 -->
     <div id="page-result" class="page">
+        <!-- 1. 總能量條 -->
         <div class="energy-section">
             <div>目前累積生命力：<strong id="current-hours">0</strong> / <span id="target-hours">100</span> 小時</div>
             
             <div class="progress-bar-container">
                 <div id="progress-bar" class="progress-bar"></div>
-                <!-- 🏐 絕對中心校正排球圖標 -->
                 <div id="volleyball" class="volleyball-icon">
                     <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3XXXHrmwzsKjlKneNUUIQMFcWy2uedU8L427CkyoeGMQk025IQLgq5kk8&s=10" alt="烏野排球">
                 </div>
@@ -291,6 +348,23 @@
             <div>跟著烏野一起突破極限吧！</div>
         </div>
 
+        <!-- 🎯 2. 新增：每週唱題速報區塊 -->
+        <div class="weekly-stats-section">
+            <div class="weekly-stats-title">📊 每週唱題速報</div>
+            <div class="weekly-grid">
+                <div class="stat-card current">
+                    <div class="stat-label">本週累積 (Mon-Sun)</div>
+                    <div class="stat-value" id="this-week-hours">0.0<span> 小時</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">上週累積</div>
+                    <div class="stat-value" id="last-week-hours">0.0<span> 小時</span></div>
+                </div>
+            </div>
+            <div class="quote-box" id="quote-box">「不准低頭！排球是永遠向上的運動！」—— 下養繫心</div>
+        </div>
+
+        <!-- 3. 隊員紀錄 -->
         <div class="record-list">
             <h3>✨ 隊員挑戰速報</h3>
             <div id="records">暫無紀錄</div>
@@ -303,8 +377,18 @@
 </div>
 
 <script>
-    const TARGET_HOURS = 90; 
+    const TARGET_HOURS = 100; 
     const ADMIN_PASSWORD = "1234"; 
+    
+    // 排球少年勵志語錄
+    const quotes = [
+        "「不准低頭！排球是永遠向上的運動！」—— 下養繫心",
+        "「正是因為沒有羽翼，人類才會尋找飛翔的方法。」—— 武田一鐵",
+        "「如果認為自己沒有才能，那大概一輩子都不會有了。」—— 及川徹",
+        "「身為接應，如果不夠高，那就用跳躍來補足！」—— 日向翔陽",
+        "「所謂排球，是在網子這一邊的全員，都是夥伴啊！」—— 田中龍之介",
+        "「昨天已經輸了，今天不一定會輸，明天更是一切未知。」—— 澤村大地"
+    ];
 
     document.getElementById('target-hours').innerText = TARGET_HOURS;
 
@@ -319,6 +403,47 @@
 
     let currentTotalHours = parseFloat(localStorage.getItem('totalHours')) || 0;
     let savedRecords = JSON.parse(localStorage.getItem('chantingRecordsObj')) || [];
+
+    // 🎯 輔助函式：取得特定日期是該年的第幾週 (週一為一週開端)
+    function getWeekNumber(d) {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return [d.getUTCFullYear(), weekNo];
+    }
+
+    // 🎯 核心功能：計算每週統計數據
+    function updateWeeklyStats() {
+        const now = new Date();
+        const currentYearWeek = getWeekNumber(now);
+        
+        // 計算上週的 Year 和 Week
+        const lastWeekDate = new Date();
+        lastWeekDate.setDate(now.getDate() - 7);
+        const lastYearWeek = getWeekNumber(lastWeekDate);
+
+        let thisWeekTotal = 0;
+        let lastWeekTotal = 0;
+
+        savedRecords.forEach(record => {
+            const recordDate = new Date(record.date);
+            const recordYearWeek = getWeekNumber(recordDate);
+
+            if (recordYearWeek[0] === currentYearWeek[0] && recordYearWeek[1] === currentYearWeek[1]) {
+                thisWeekTotal += record.value;
+            } else if (recordYearWeek[0] === lastYearWeek[0] && recordYearWeek[1] === lastYearWeek[1]) {
+                lastWeekTotal += record.value;
+            }
+        });
+
+        document.getElementById('this-week-hours').innerHTML = `${thisWeekTotal.toFixed(1)}<span> 小時</span>`;
+        document.getElementById('last-week-hours').innerHTML = `${lastWeekTotal.toFixed(1)}<span> 小時</span>`;
+        
+        // 隨機更換金句
+        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        document.getElementById('quote-box').innerText = randomQuote;
+    }
 
     document.getElementById('唱題表單').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -353,6 +478,7 @@
 
         setTimeout(() => {
             updateProgressBar();
+            updateWeeklyStats(); // 按下扣球時同步更新每週統計
         }, 150);
     });
 
@@ -399,6 +525,7 @@
                 localStorage.setItem('chantingRecordsObj', JSON.stringify(savedRecords));
                 updateProgressBar();
                 renderRecords();
+                updateWeeklyStats(); // 刪除紀錄時也要更新每週統計
                 alert('紀錄已成功扣除！');
             }
         } else {
@@ -418,10 +545,13 @@
         if (password === ADMIN_PASSWORD) {
             if (confirm('確定要讓所有人的汗水歸零嗎？')) {
                 localStorage.clear(); currentTotalHours = 0; savedRecords = [];
-                updateProgressBar(); renderRecords(); alert('排球場已清空！');
+                updateProgressBar(); renderRecords(); updateWeeklyStats(); alert('排球場已清空！');
             }
         } else { alert('密碼錯誤！無法操作。'); }
     });
+
+    // 🎯 初始化呼叫：頁面載入時先計算一次每週統計
+    updateWeeklyStats();
 </script>
 
 </body>
