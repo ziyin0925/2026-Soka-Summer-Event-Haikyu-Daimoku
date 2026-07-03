@@ -143,7 +143,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 🎯 新增：每週統計區塊樣式 */
+        /* 每週統計區塊樣式 */
         .weekly-stats-section {
             background-color: #eee;
             border-radius: 10px;
@@ -239,7 +239,7 @@
             font-weight: bold;
             cursor: pointer;
             text-transform: uppercase;
-            transition: transform 0.1s, box-shadow 0.1s;
+            transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
         }
         button.submit-btn {
             background-color: var(--karasuno-orange);
@@ -284,6 +284,7 @@
             padding: 4px 8px;
             font-size: 11px;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
 
         .clear-btn {
@@ -295,6 +296,56 @@
             text-decoration: underline;
             margin-top: 20px;
         }
+
+        /* 萬用客製化 DOM 彈窗樣式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999; opacity: 0; pointer-events: none;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: #fff; width: 85%; max-width: 340px;
+            border-radius: 12px; border: 3px solid var(--karasuno-orange);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            overflow: hidden; animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalPop {
+            from { transform: scale(0.85); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-header {
+            background: var(--karasuno-black); color: #fff;
+            padding: 12px; font-weight: bold; font-size: 15px;
+            text-align: center; border-bottom: 2px solid var(--karasuno-orange);
+            letter-spacing: 1px;
+        }
+        .modal-body { padding: 20px; font-size: 14px; color: #333; line-height: 1.5; text-align: center; }
+        .modal-input {
+            width: 100%; padding: 8px; margin-top: 10px;
+            border: 2px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+        }
+        .modal-input:focus { border-color: var(--karasuno-orange); outline: none; }
+        .modal-footer {
+            padding: 10px 15px 15px; display: flex; gap: 10px; justify-content: center;
+        }
+        .modal-btn {
+            flex: 1; padding: 10px; border: none; border-radius: 6px;
+            font-size: 14px; font-weight: bold; cursor: pointer; text-align: center;
+        }
+        .modal-btn-confirm { background: var(--karasuno-orange); color: white; }
+        .modal-btn-cancel { background: #eee; color: #555; }
+        
+        /* 視覺鎖定與半透明類別 */
+        .btn-locked {
+            pointer-events: none !important;
+            opacity: 0.4 !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
     </style>
 </head>
 <body>
@@ -305,7 +356,6 @@
         <div class="sub-title">— 將汗水與題目化為不落的烏鴉之翼 —</div>
     </div>
     
-    <!-- 第一頁：輸入資料 -->
     <div id="page-input" class="page active">
         <form id="唱題表單">
             <div class="form-group">
@@ -332,9 +382,7 @@
         </form>
     </div>
 
-    <!-- 第二頁：能量展示與速報 -->
     <div id="page-result" class="page">
-        <!-- 1. 總能量條 -->
         <div class="energy-section">
             <div>目前累積生命力：<strong id="current-hours">0</strong> / <span id="target-hours">100</span> 小時</div>
             
@@ -348,7 +396,6 @@
             <div>跟著烏野一起突破極限吧！</div>
         </div>
 
-        <!-- 🎯 2. 新增：每週唱題速報區塊 -->
         <div class="weekly-stats-section">
             <div class="weekly-stats-title">📊 每週唱題速報</div>
             <div class="weekly-grid">
@@ -364,7 +411,6 @@
             <div class="quote-box" id="quote-box">「不准低頭！排球是永遠向上的運動！」—— 下養繫心</div>
         </div>
 
-        <!-- 3. 隊員紀錄 -->
         <div class="record-list">
             <h3>✨ 隊員挑戰速報</h3>
             <div id="records">暫無紀錄</div>
@@ -376,11 +422,23 @@
     </div>
 </div>
 
+<div id="custom-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div id="modal-title" class="modal-header">烏野高中排球部通告</div>
+        <div class="modal-body">
+            <div id="modal-text">提示訊息</div>
+            <input type="text" id="modal-input-field" class="modal-input" style="display: none;">
+        </div>
+        <div class="modal-footer" id="modal-buttons">
+            </div>
+    </div>
+</div>
+
 <script>
     const TARGET_HOURS = 90; 
     const ADMIN_PASSWORD = "1234"; 
 
-    // 🔗 已更新為您提供的新 Google Apps Script Web App 網址
+    // 🔗 Google Apps Script Web App 網址
     const API_URL = "https://script.google.com/macros/s/AKfycbxShOiSE8581x7pUN7gyibZbe1xvMXUe0NtCI5VWcSDfd-NhXg2N1RDJqpQbmCzPNXJ/exec";
 
     // 📋 試算表欄位順序：id, name, date, hours, minutes, value
@@ -407,19 +465,79 @@
 
     document.getElementById('date').value = new Date().toISOString().substring(0, 10);
 
-    // 🎯 資料快取
     let currentTotalHours = 0;
     let savedRecords = [];
+
+    /* ============================================================
+       Promise 架構的客製化 DOM 彈窗系統
+       ============================================================ */
+    function showModal({ title = "烏野高中排球部", message = "", type = "alert", placeholder = "" }) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('custom-modal');
+            const titleEl = document.getElementById('modal-title');
+            const textEl = document.getElementById('modal-text');
+            const inputField = document.getElementById('modal-input-field');
+            const footer = document.getElementById('modal-buttons');
+
+            titleEl.innerText = title;
+            textEl.innerText = message;
+            inputField.value = "";
+            
+            if (type === "prompt") {
+                inputField.style.display = "block";
+                inputField.placeholder = placeholder;
+            } else {
+                inputField.style.display = "none";
+            }
+
+            footer.innerHTML = "";
+
+            if (type === "alert") {
+                const btn = document.createElement('button');
+                btn.className = "modal-btn modal-btn-confirm";
+                btn.innerText = "確認";
+                btn.onclick = () => { overlay.classList.remove('active'); resolve(true); };
+                footer.appendChild(btn);
+            } else if (type === "confirm") {
+                const btnCancel = document.createElement('button');
+                btnCancel.className = "modal-btn modal-btn-cancel";
+                btnCancel.innerText = "取消";
+                btnCancel.onclick = () => { overlay.classList.remove('active'); resolve(false); };
+                
+                const btnConfirm = document.createElement('button');
+                btnConfirm.className = "modal-btn modal-btn-confirm";
+                btnConfirm.innerText = "確認";
+                btnConfirm.onclick = () => { overlay.classList.remove('active'); resolve(true); };
+                
+                footer.appendChild(btnCancel);
+                footer.appendChild(btnConfirm);
+            } else if (type === "prompt") {
+                const btnCancel = document.createElement('button');
+                btnCancel.className = "modal-btn modal-btn-cancel";
+                btnCancel.innerText = "取消";
+                btnCancel.onclick = () => { overlay.classList.remove('active'); resolve(null); };
+                
+                const btnConfirm = document.createElement('button');
+                btnConfirm.className = "modal-btn modal-btn-confirm";
+                btnConfirm.innerText = "確認";
+                btnConfirm.onclick = () => { overlay.classList.remove('active'); resolve(inputField.value); };
+                
+                footer.appendChild(btnCancel);
+                footer.appendChild(btnConfirm);
+            }
+
+            overlay.classList.add('active');
+        });
+    }
 
     // 將後端的二維陣列轉成物件陣列（跳過標題列）
     function rowsToRecords(rows) {
         if (!Array.isArray(rows) || rows.length <= 1) return [];
-        const body = rows.slice(1); // 第一列是標題
+        const body = rows.slice(1); 
         return body.map(row => {
             const obj = {};
             COLUMNS.forEach((key, idx) => { obj[key] = row[idx]; });
             
-            // 💡 關鍵修正 1：將 id 轉為「字串」而非數字，避免科學記號比對失敗
             obj.id = obj.id != null ? String(obj.id).trim() : "";
             obj.hours = Number(obj.hours) || 0;
             obj.minutes = Number(obj.minutes) || 0;
@@ -427,7 +545,7 @@
             obj.date = obj.date ? String(obj.date).substring(0, 10) : "";
             obj.name = obj.name != null ? String(obj.name) : "";
             return obj;
-        }).filter(r => r.id); // 過濾掉空列
+        }).filter(r => r.id); 
     }
 
     // 讀取（GET）所有紀錄
@@ -435,9 +553,7 @@
         const res = await fetch(API_URL, { method: "GET" });
         const rows = await res.json();
         savedRecords = rowsToRecords(rows);
-        // 依 id 由新到舊排序
         savedRecords.sort((a, b) => b.id.localeCompare(a.id));
-        // 重新計算總時數
         currentTotalHours = savedRecords.reduce((sum, r) => sum + r.value, 0);
     }
 
@@ -529,7 +645,7 @@
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerText = '❌ 刪除';
-            deleteBtn.onclick = function() { deleteRecord(record.id, record.name, record.value); };
+            deleteBtn.onclick = function() { deleteRecord(deleteBtn, record.id, record.name, record.value); };
 
             newRecord.appendChild(deleteBtn);
             recordsContainer.appendChild(newRecord);
@@ -549,6 +665,29 @@
         }
     }
 
+    // 🎯 輔助函式：用來一鍵控制結果頁所有按鈕的鎖定狀態
+    function setAllResultButtonsLocked(isLocked) {
+        const deleteButtons = document.querySelectorAll('.delete-btn');
+        const goBackBtn = document.getElementById('go-back-btn');
+        const clearBtn = document.getElementById('clear-data-btn');
+
+        deleteButtons.forEach(btn => {
+            if (isLocked) {
+                btn.classList.add('btn-locked');
+            } else {
+                btn.classList.remove('btn-locked');
+            }
+        });
+
+        if (isLocked) {
+            goBackBtn.classList.add('btn-locked');
+            clearBtn.classList.add('btn-locked');
+        } else {
+            goBackBtn.classList.remove('btn-locked');
+            clearBtn.classList.remove('btn-locked');
+        }
+    }
+
     /* ============================================================
        事件處理
        ============================================================ */
@@ -562,12 +701,11 @@
         const hours = parseInt(hoursSelect.value);
         const minutes = parseInt(minutesSelect.value);
 
-        if (!name) return alert('請輸入姓名！');
-        if (hours === 0 && minutes === 0) return alert('請選擇唱題時間！');
+        if (!name) return showModal({ message: '請輸入姓名！' });
+        if (hours === 0 && minutes === 0) return showModal({ message: '請選擇唱題時間！' });
 
         const addedHours = hours + (minutes / 60);
         
-        // 💡 關鍵修正 2：在新增時，將 id 強制轉換為字串型別傳遞
         const recordObj = {
             id: String(Date.now()), 
             name: name, 
@@ -578,8 +716,8 @@
         };
 
         const originalText = submitBtn.innerText;
-        submitBtn.disabled = true;
-        submitBtn.innerText = '傳送中...';
+        submitBtn.classList.add('btn-locked');
+        submitBtn.innerText = '送出中請等待數秒...';
 
         try {
             await postRow(recordObj);   
@@ -591,37 +729,57 @@
             refreshUI(true); 
         } catch (err) {
             console.error(err);
-            alert('資料傳送失敗，請檢查網路或稍後再試。');
+            showModal({ message: '資料傳送失敗，請檢查網路或稍後再試。' });
         } finally {
-            submitBtn.disabled = false;
+            submitBtn.classList.remove('btn-locked');
             submitBtn.innerText = originalText;
         }
     });
 
-    async function deleteRecord(id, originalName, value) {
-        const inputName = prompt(`確認身分：請輸入填寫本條紀錄的隊員姓名 (${originalName}) ：`);
-        if (inputName === null) return;
+    async function deleteRecord(clickedBtn, id, originalName, value) {
+        const inputName = await showModal({
+            title: "確認身分",
+            message: `請輸入填寫本條紀錄的隊員姓名 (${originalName}) ：`,
+            type: "prompt",
+            placeholder: "填寫者姓名"
+        });
+        
+        if (inputName === null) return; 
         if (inputName.trim() !== originalName) {
-            alert(`名字不符！無法修改。`);
+            showModal({ message: `名字不符！無法修改。` });
             return;
         }
-        if (!confirm('確定要刪除這筆唱題紀錄嗎？')) return;
+        
+        const isConfirm = await showModal({
+            title: "下養教練警告",
+            message: "確定要刪除這筆唱題紀錄嗎？",
+            type: "confirm"
+        });
+        if (!isConfirm) return;
+
+        // 🎯 關鍵變更：鎖定「全畫面的刪除與功能按鈕」，防止多重操作
+        setAllResultButtonsLocked(true);
+        const originalBtnText = clickedBtn.innerText;
+        clickedBtn.innerText = "⏳...";
 
         try {
-            // 💡 關鍵修正 3：確保發出的 action 內帶的 id 也是字串
             const res = await postAction({ action: "delete", id: String(id) });
             
             if (res.status === "error") {
-                alert('刪除失敗：' + res.message);
+                showModal({ message: '刪除失敗：' + res.message });
                 return;
             }
 
             await fetchRecords();
             refreshUI(false);
-            alert('紀錄已成功扣除！');
+            showModal({ message: '紀錄已成功扣除！' });
         } catch (err) {
             console.error(err);
-            alert('刪除失敗，請稍後再試。');
+            showModal({ message: '刪除失敗，請稍後再試。' });
+        } finally {
+            // 🎯 請求完成後，集體解鎖
+            setAllResultButtonsLocked(false);
+            clickedBtn.innerText = originalBtnText;
         }
     }
 
@@ -633,18 +791,36 @@
     });
 
     document.getElementById('clear-data-btn').addEventListener('click', async function() {
-        const password = prompt('請輸入教練/領隊管理密碼以清空全部資料：');
-        if (password !== ADMIN_PASSWORD) { alert('密碼錯誤！無法操作。'); return; }
-        if (!confirm('確定要讓所有人的汗水歸零嗎？')) return;
+        const password = await showModal({
+            title: "教練專用重設",
+            message: "請輸入教練/領隊管理密碼以清空全部資料：",
+            type: "prompt",
+            placeholder: "請輸入密碼"
+        });
+        
+        if (password === null) return;
+        if (password !== ADMIN_PASSWORD) { showModal({ message: '密碼錯誤！無法操作。' }); return; }
+        
+        const isConfirm = await showModal({
+            title: "高能警告",
+            message: "確定要讓所有人的汗水歸零嗎？此動作無法復原！",
+            type: "confirm"
+        });
+        if (!isConfirm) return;
+
+        // 全面鎖定
+        setAllResultButtonsLocked(true);
 
         try {
             await postAction({ action: "clear" });
             await fetchRecords();
             refreshUI(false);
-            alert('排球場已清空！');
+            showModal({ message: '排球場已清空！' });
         } catch (err) {
             console.error(err);
-            alert('清空失敗，請稍後再試。');
+            showModal({ message: '清空失敗，請稍後再試。' });
+        } finally {
+            setAllResultButtonsLocked(false);
         }
     });
 
