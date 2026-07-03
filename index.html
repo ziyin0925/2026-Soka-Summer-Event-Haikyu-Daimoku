@@ -379,7 +379,13 @@
 <script>
     const TARGET_HOURS = 90; 
     const ADMIN_PASSWORD = "1234"; 
-    
+
+    // 🔗 Google Apps Script Web App 網址
+    const API_URL = "https://script.google.com/macros/s/AKfycbxaWEGK16u9dPbvNw4rklRkSFIM1EPrwkEWMPR0r9yAjnbTnbo44VeTLwmb2Qhdg7c/exec";
+
+    // 📋 試算表欄位順序（第一列請放這個標題）：id, name, date, hours, minutes, value
+    const COLUMNS = ["id", "name", "date", "hours", "minutes", "value"];
+
     // 排球少年勵志語錄
     const quotes = [
         "「不准低頭！排球是永遠向上的運動！」—— 下養繫心",
@@ -401,10 +407,61 @@
 
     document.getElementById('date').value = new Date().toISOString().substring(0, 10);
 
-    let currentTotalHours = parseFloat(localStorage.getItem('totalHours')) || 0;
-    let savedRecords = JSON.parse(localStorage.getItem('chantingRecordsObj')) || [];
+    // 🎯 資料快取（改由 Google Sheets 讀取，不再用 localStorage）
+    let currentTotalHours = 0;
+    let savedRecords = [];
 
-    // 🎯 輔助函式：取得特定日期是該年的第幾週 (週一為一週開端)
+    /* ============================================================
+       API 溝通函式
+       - doGet 回傳整張表的二維陣列（含第一列標題）
+       - doPost 會把傳入的陣列 appendRow 到表格
+       ============================================================ */
+
+    // 將後端的二維陣列轉成物件陣列（跳過標題列）
+    function rowsToRecords(rows) {
+        if (!Array.isArray(rows) || rows.length <= 1) return [];
+        const body = rows.slice(1); // 第一列是標題
+        return body.map(row => {
+            const obj = {};
+            COLUMNS.forEach((key, idx) => { obj[key] = row[idx]; });
+            // 型別轉換，確保計算正確
+            obj.id = Number(obj.id);
+            obj.hours = Number(obj.hours) || 0;
+            obj.minutes = Number(obj.minutes) || 0;
+            obj.value = Number(obj.value) || (obj.hours + obj.minutes / 60);
+            obj.date = obj.date ? String(obj.date).substring(0, 10) : "";
+            obj.name = obj.name != null ? String(obj.name) : "";
+            return obj;
+        }).filter(r => r.id); // 過濾掉空列
+    }
+
+    // 讀取（GET）所有紀錄
+    async function fetchRecords() {
+        const res = await fetch(API_URL, { method: "GET" });
+        const rows = await res.json();
+        savedRecords = rowsToRecords(rows);
+        // 依 id（時間戳）由新到舊排序
+        savedRecords.sort((a, b) => b.id - a.id);
+        // 重新計算總時數
+        currentTotalHours = savedRecords.reduce((sum, r) => sum + r.value, 0);
+    }
+
+    // 新增（POST）：把一筆紀錄以「陣列」形式送出，符合後端 appendRow(payload)
+    async function postRow(record) {
+        const rowArray = COLUMNS.map(key => record[key]);
+        // 用 text/plain 避免 CORS 預檢；Apps Script 端 JSON.parse(e.postData.contents) 仍可解析
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(rowArray)
+        });
+        return res.json().catch(() => ({}));
+    }
+
+    /* ============================================================
+       每週統計
+       ============================================================ */
+
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -413,12 +470,10 @@
         return [d.getUTCFullYear(), weekNo];
     }
 
-    // 🎯 核心功能：計算每週統計數據
     function updateWeeklyStats() {
         const now = new Date();
         const currentYearWeek = getWeekNumber(now);
-        
-        // 計算上週的 Year 和 Week
+
         const lastWeekDate = new Date();
         lastWeekDate.setDate(now.getDate() - 7);
         const lastYearWeek = getWeekNumber(lastWeekDate);
@@ -439,54 +494,20 @@
 
         document.getElementById('this-week-hours').innerHTML = `${thisWeekTotal.toFixed(1)}<span> 小時</span>`;
         document.getElementById('last-week-hours').innerHTML = `${lastWeekTotal.toFixed(1)}<span> 小時</span>`;
-        
-        // 隨機更換金句
+
         const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
         document.getElementById('quote-box').innerText = randomQuote;
     }
 
-    document.getElementById('唱題表單').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const name = document.getElementById('name').value.trim();
-        const date = document.getElementById('date').value;
-        const hours = parseInt(hoursSelect.value);
-        const minutes = parseInt(minutesSelect.value);
-
-        if (!name) return alert('請輸入姓名！');
-        if (hours === 0 && minutes === 0) return alert('請選擇唱題時間！');
-
-        const addedHours = hours + (minutes / 60);
-        currentTotalHours += addedHours;
-        localStorage.setItem('totalHours', currentTotalHours);
-        
-        const recordObj = {
-            id: Date.now(), name: name, date: date, hours: hours, minutes: minutes, value: addedHours
-        };
-        
-        savedRecords.unshift(recordObj);
-        localStorage.setItem('chantingRecordsObj', JSON.stringify(savedRecords));
-
-        renderRecords();
-
-        document.getElementById('page-input').classList.remove('active');
-        document.getElementById('page-result').classList.add('active');
-
-        document.getElementById('progress-bar').style.width = '0%';
-        document.getElementById('volleyball').style.left = '0%';
-        document.getElementById('current-hours').innerText = '0.0';
-
-        setTimeout(() => {
-            updateProgressBar();
-            updateWeeklyStats(); // 按下扣球時同步更新每週統計
-        }, 150);
-    });
+    /* ============================================================
+       畫面渲染
+       ============================================================ */
 
     function updateProgressBar() {
         document.getElementById('current-hours').innerText = currentTotalHours.toFixed(1);
         let percentage = (currentTotalHours / TARGET_HOURS) * 100;
         if (percentage > 100) percentage = 100;
-        
+
         document.getElementById('progress-bar').style.width = percentage + '%';
         document.getElementById('volleyball').style.left = percentage + '%';
     }
@@ -502,7 +523,7 @@
             const newRecord = document.createElement('div');
             newRecord.className = 'record-item';
             newRecord.innerHTML = `<span>🧡 <strong>${record.name}</strong> 於 ${record.date} 挑戰 <strong>${record.hours}時${record.minutes}分</strong></span>`;
-            
+
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerText = '❌ 刪除';
@@ -513,23 +534,86 @@
         });
     }
 
-    function deleteRecord(id, originalName, value) {
+    // 統一刷新畫面
+    function refreshUI(animate) {
+        renderRecords();
+        updateWeeklyStats();
+        if (animate) {
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('volleyball').style.left = '0%';
+            document.getElementById('current-hours').innerText = '0.0';
+            setTimeout(updateProgressBar, 150);
+        } else {
+            updateProgressBar();
+        }
+    }
+
+    /* ============================================================
+       事件處理
+       ============================================================ */
+
+    const submitBtn = document.querySelector('#唱題表單 .submit-btn');
+
+    document.getElementById('唱題表單').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value.trim();
+        const date = document.getElementById('date').value;
+        const hours = parseInt(hoursSelect.value);
+        const minutes = parseInt(minutesSelect.value);
+
+        if (!name) return alert('請輸入姓名！');
+        if (hours === 0 && minutes === 0) return alert('請選擇唱題時間！');
+
+        const addedHours = hours + (minutes / 60);
+        const recordObj = {
+            id: Date.now(), name: name, date: date,
+            hours: hours, minutes: minutes, value: addedHours
+        };
+
+        const originalText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = '傳送中...';
+
+        try {
+            await postRow(recordObj);   // 寫入 Google Sheets
+            await fetchRecords();       // 重新讀取最新資料
+
+            // 切換到結果頁
+            document.getElementById('page-input').classList.remove('active');
+            document.getElementById('page-result').classList.add('active');
+
+            refreshUI(true); // 有進場動畫
+        } catch (err) {
+            console.error(err);
+            alert('資料傳送失敗，請檢查網路或稍後再試。');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+        }
+    });
+
+    async function deleteRecord(id, originalName, value) {
         const inputName = prompt(`確認身分：請輸入填寫本條紀錄的隊員姓名 (${originalName}) ：`);
         if (inputName === null) return;
-        if (inputName.trim() === originalName) {
-            if (confirm('確定要刪除這筆唱題紀錄嗎？')) {
-                currentTotalHours -= value;
-                if (currentTotalHours < 0) currentTotalHours = 0;
-                localStorage.setItem('totalHours', currentTotalHours);
-                savedRecords = savedRecords.filter(record => record.id !== id);
-                localStorage.setItem('chantingRecordsObj', JSON.stringify(savedRecords));
-                updateProgressBar();
-                renderRecords();
-                updateWeeklyStats(); // 刪除紀錄時也要更新每週統計
-                alert('紀錄已成功扣除！');
-            }
-        } else {
+        if (inputName.trim() !== originalName) {
             alert(`名字不符！無法修改。`);
+            return;
+        }
+        if (!confirm('確定要刪除這筆唱題紀錄嗎？')) return;
+
+        try {
+            await postRow({
+                id: id, name: originalName, date: "",
+                hours: "", minutes: "", value: "",
+                action: "delete"      // 附帶刪除指令（需後端支援，見說明）
+            });
+            await fetchRecords();
+            refreshUI(false);
+            alert('紀錄已成功扣除！');
+        } catch (err) {
+            console.error(err);
+            alert('刪除失敗，請稍後再試。');
         }
     }
 
@@ -540,18 +624,38 @@
         document.getElementById('page-input').classList.add('active');
     });
 
-    document.getElementById('clear-data-btn').addEventListener('click', function() {
+    document.getElementById('clear-data-btn').addEventListener('click', async function() {
         const password = prompt('請輸入教練/領隊管理密碼以清空全部資料：');
-        if (password === ADMIN_PASSWORD) {
-            if (confirm('確定要讓所有人的汗水歸零嗎？')) {
-                localStorage.clear(); currentTotalHours = 0; savedRecords = [];
-                updateProgressBar(); renderRecords(); updateWeeklyStats(); alert('排球場已清空！');
-            }
-        } else { alert('密碼錯誤！無法操作。'); }
+        if (password !== ADMIN_PASSWORD) { alert('密碼錯誤！無法操作。'); return; }
+        if (!confirm('確定要讓所有人的汗水歸零嗎？')) return;
+
+        try {
+            await postRow({
+                id: "", name: "", date: "",
+                hours: "", minutes: "", value: "",
+                action: "clear"       // 附帶清空指令（需後端支援，見說明）
+            });
+            await fetchRecords();
+            refreshUI(false);
+            alert('排球場已清空！');
+        } catch (err) {
+            console.error(err);
+            alert('清空失敗，請稍後再試。');
+        }
     });
 
-    // 🎯 初始化呼叫：頁面載入時先計算一次每週統計
-    updateWeeklyStats();
+    /* ============================================================
+       初始化：頁面載入時從 Google Sheets 抓資料
+       ============================================================ */
+    (async function init() {
+        try {
+            await fetchRecords();
+        } catch (err) {
+            console.error('初始讀取失敗：', err);
+        }
+        renderRecords();
+        updateWeeklyStats();
+    })();
 </script>
 
 </body>
